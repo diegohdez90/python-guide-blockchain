@@ -10,7 +10,7 @@ blockchain = [genesis_block]
 open_transactions = []
 owner = "Diego"
 participants = {
-    'Diego'
+    "Diego"
 }
 
 
@@ -68,8 +68,8 @@ def hash_block(last_block):
 
 
 def get_balance(participant):
-    tx_sender = [[tx['amount'] for tx in block['transactions'] if tx['sender'] == participant]
-                 for block in blockchain]
+    tx_sender = [[tx['amount'] for tx in block['transactions']
+                  if tx['sender'] == participant] for block in blockchain]
     open_tx_sender = [tx['amount']
                       for tx in open_transactions if tx['sender'] == participant]
     tx_sender.append(open_tx_sender)
@@ -77,8 +77,8 @@ def get_balance(participant):
     for tx in tx_sender:
         if len(tx) > 0:
             amount_sent += tx[0]
-    tx_recipient = [[tx['amount'] for tx in block['transactions'] if tx['recipient'] == participant]
-                    for block in blockchain]
+    tx_recipient = [[tx['amount'] for tx in block['transactions']
+                     if tx['recipient'] == participant] for block in blockchain]
     amount_received = 0
     for tx in tx_recipient:
         if len(tx) > 0:
@@ -138,7 +138,7 @@ while waiting_for_input:
     print("Please choice")
     print("1. Add a new transaction")
     print("2. Mine a new block")
-    print("3 .Output blockchain blocks")
+    print("3. Output blockchain blocks")
     print("4  Output participants")
     print("5. Transaction validity")
     print("h. Manipulate the chain")
@@ -186,7 +186,7 @@ while waiting_for_input:
         break
 
     balance = get_balance('Diego')
-    print(balance)
+    print("Balance of {}: {:.2f}".format("Diego", balance))
 else:
     print("User left!")
 
