@@ -1,4 +1,5 @@
 from functools import reduce
+from collections import OrderedDict
 import hashlib as hl
 import json
 
@@ -35,11 +36,13 @@ def add_transaction(recipient, sender=owner, amount=1.0):
         amount (float, optional): The amount of coins sent with the transaction. Defaults to 1.0.
     """
 
-    transaction = {
-        'sender': sender,
-        'recipient': recipient,
-        'amount': amount
-    }
+    transaction = OrderedDict([(
+        'sender', sender,
+    ), (
+        'recipient', recipient
+    ), (
+        'amount', amount
+    )])
 
     if verify_transaction(transaction):
         open_transactions.append(transaction)
@@ -53,11 +56,13 @@ def mine_block():
     last_block = blockchain[-1]
     hashed_block = hash_block(last_block)
     proof = proof_of_work()
-    reward_transaction = {
-        'sender': 'MINING',
-        'recipient': owner,
-        'amount': MINING_REWARD
-    }
+    reward_transaction = OrderedDict([(
+        'sender', 'MINING',
+    ), (
+        'recipient', owner,
+    ), (
+        'amount', MINING_REWARD
+    )])
     copied_transaction = open_transactions[:]
     copied_transaction.append(reward_transaction)
     block = {
@@ -71,7 +76,7 @@ def mine_block():
 
 
 def hash_block(block):
-    return hl.sha256(str(json.dumps(block)).encode()).hexdigest()
+    return hl.sha256(str(json.dumps(block, sort_keys=True)).encode()).hexdigest()
 
 
 def get_balance(participant):
