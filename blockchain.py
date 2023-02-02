@@ -21,6 +21,25 @@ participants = {
 }
 
 
+def load_load():
+    with open("data.txt", mode="r") as f:
+        file_content = f.readlines()
+        global blockchain
+        global open_transactions
+        blockchain = file_content[0]
+        open_transactions = file_content[1]
+
+
+load_load()
+
+
+def save_data():
+    with open('data.txt', mode="w") as f:
+        f.write(str(blockchain))
+        f.write("\n")
+        f.write(str(open_transactions))
+
+
 def get_last_blockchain_value():
     """ Return last value """
     if len(blockchain) < 1:
@@ -49,6 +68,7 @@ def add_transaction(recipient, sender=owner, amount=1.0):
         open_transactions.append(transaction)
         participants.add(sender)
         participants.add(recipient)
+        save_data()
         return True
     return False
 
@@ -73,6 +93,7 @@ def mine_block():
         'proof': proof
     }
     blockchain.append(block)
+    save_data()
     return True
 
 
