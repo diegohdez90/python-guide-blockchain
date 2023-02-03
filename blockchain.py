@@ -2,20 +2,14 @@ from functools import reduce
 from collections import OrderedDict
 import hashlib as hl
 import json
-import pickle
+
 
 from utils.hash import hash_block, hash_string_256
 
 # Initializing blockchain list
 MINING_REWARD = 10
 
-genesis_block = {
-    'previous_hash': '',
-    'index': 0,
-    'transactions': [],
-    'proof': 100
-}
-blockchain = [genesis_block]
+blockchain = []
 open_transactions = []
 owner = "Diego"
 participants = {
@@ -24,11 +18,12 @@ participants = {
 
 
 def load_load():
+    global blockchain
+    global open_transactions
+    global genesis_block
     try:
         with open("data.txt", mode="r") as f:
             file_content = f.readlines()
-            global blockchain
-            global open_transactions
             blockchain = json.loads(file_content[0][:-1])
             updated_blockchain = []
             for block in blockchain:
@@ -51,6 +46,14 @@ def load_load():
             open_transactions = updated_transactions
     except IOError as e:
         print(e)
+        genesis_block = {
+            'previous_hash': '',
+            'index': 0,
+            'transactions': [],
+            'proof': 100
+        }
+        blockchain = [genesis_block]
+        open_transactions = []
     except ValueError:
         print('Value Error')
     except:
@@ -63,10 +66,13 @@ load_load()
 
 
 def save_data():
-    with open('data.txt', mode="w") as f:
-        f.write(json.dumps(blockchain))
-        f.write("\n")
-        f.write(json.dumps(open_transactions))
+    try:
+        with open('data.txt', mode="w") as f:
+            f.write(json.dumps(blockchain))
+            f.write("\n")
+            f.write(json.dumps(open_transactions))
+    except IOError:
+        print(e)
 
 
 def get_last_blockchain_value():
