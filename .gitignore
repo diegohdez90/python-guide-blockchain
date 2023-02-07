@@ -189,4 +189,9 @@ poetry.toml
 .history
 .ionide
 
+### Project
+# Ignore data blocks
+*.txt
+*.p
+
 # End of https://www.toptal.com/developers/gitignore/api/visualstudiocode,python
