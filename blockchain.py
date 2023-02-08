@@ -1,10 +1,9 @@
 from functools import reduce
-from collections import OrderedDict
-import hashlib as hl
 import json
 
 
-from utils.hash import hash_block, hash_string_256
+from utils.hash import hash_block
+from utils.verification import Verification
 from classes.block import Block
 from classes.transaction import Transaction
 
@@ -66,7 +65,7 @@ def save_data():
             saveable_transaction = [
                 tx.__dict__ for tx in open_transactions]
             f.write(json.dumps(saveable_transaction))
-    except IOError:
+    except IOError as e:
         print(e)
 
 
@@ -87,8 +86,8 @@ def add_transaction(recipient, sender=owner, amount=1.0):
     """
 
     transaction = Transaction(sender, recipient, amount)
-
-    if verify_transaction(transaction):
+    verifier = Verification()
+    if verifier.verify_transaction(transaction, get_balance):
         open_transactions.append(transaction)
         save_data()
         return True
@@ -146,44 +145,12 @@ def get_blockchain_elements():
         print("-" * 20)
 
 
-def verify_chain():
-    """Verify the current blockchain
-
-    Returns:
-        Boolean: Returns True if block is valid otherwise returns False
-    """
-    for (index, block) in enumerate(blockchain):
-        if index == 0:
-            continue
-        if block.previous_hash != hash_block(blockchain[index - 1]):
-            return False
-        if not valid_proof(block.transactions[:-1], block.previous_hash, block.proof):
-            print('Proof of work is invalid')
-            return False
-    return True
-
-
-def verify_transaction(transaction):
-    sender_balance = get_balance(transaction.sender)
-    return sender_balance >= transaction.amount
-
-
-def verify_transactions():
-    return all([verify_transaction(tx) for tx in open_transactions])
-
-
-def valid_proof(transactions, last_hash, proof):
-    guess = (str([tx.to_ordered_dict() for tx in transactions]) +
-             str(last_hash) + str(proof)).encode()
-    guess_hash = hash_string_256(guess)
-    return guess_hash[0:2] == "00"
-
-
 def proof_of_work():
     last_block = blockchain[-1]
     last_hash = hash_block(last_block)
     proof = 0
-    while not valid_proof(open_transactions, last_hash, proof):
+    verifier = Verification()
+    while not verifier.valid_proof(open_transactions, last_hash, proof):
         proof += 1
     return proof
 
@@ -214,7 +181,8 @@ while waiting_for_input:
     elif choice == '3':
         get_blockchain_elements()
     elif choice == '4':
-        if verify_transactions():
+        verifier = Verification()
+        if verifier.verify_transactions(open_transactions, get_balance):
             print("All transactions are valid")
         else:
             print("There are invalid transactions")
@@ -223,7 +191,8 @@ while waiting_for_input:
     else:
         print("Input invalid")
 
-    if not verify_chain():
+    verifier = Verification()
+    if not verifier.verify_chain(blockchain):
         get_blockchain_elements()
         print("Invalid blockchain")
         break
