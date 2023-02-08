@@ -43,8 +43,7 @@ def load_load():
                     [('sender', tx['sender']), ('recipient', tx['recipient']), ('amount', tx['amount'])])
                 updated_transactions.append(updated_transaction)
             open_transactions = updated_transactions
-    except IOError as e:
-        print(e)
+    except (IOError, IndexError):
         genesis_block = Block(previous_hash="", index=0,
                               transactions=[], proof=100)
         blockchain = [genesis_block]
@@ -63,7 +62,8 @@ load_load()
 def save_data():
     try:
         with open('data.txt', mode="w") as f:
-            f.write(json.dumps(blockchain))
+            saveable_chain = [block.__dict__ for block in blockchain]
+            f.write(json.dumps(saveable_chain))
             f.write("\n")
             f.write(json.dumps(open_transactions))
     except IOError:
