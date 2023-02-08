@@ -1,7 +1,9 @@
 from time import time
 
+from utils.printable import Printable
 
-class Block:
+
+class Block(Printable):
 
     def __init__(self, index, previous_hash, transactions, proof, time=time()):
         self.index = index
