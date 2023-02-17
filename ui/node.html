@@ -281,10 +281,10 @@
                         .then(res => {
                             const { data } = res;
                             vm.error = null;
-                            vm.success = res.data.message;
+                            vm.success = data.message;
                             vm.txLoading = false;
                             console.log(data);
-                            vm.funds = res.data.funds;
+                            vm.funds = data.funds;
 
                         })
                         .catch(err => {
@@ -299,9 +299,9 @@
                         .then(res => {
                             const { data } = res;
                             vm.error = null;
-                            vm.success = res.data.message;
+                            vm.success = data.message;
                             console.log(data);
-                            vm.funds = res.data.funds;
+                            vm.funds = data.funds;
                         })
                         .catch(err => {
                             vm.success = null;
