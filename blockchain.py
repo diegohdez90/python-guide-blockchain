@@ -20,9 +20,9 @@ class Blockchain:
                                    transactions=[], proof=100)
         self.chain = [self.genesis_block]
         self.__open_transactions = []
-        self.load_load()
         self.hosting_node = hosting_node_id
         self.__peer_nodes = set()
+        self.load_load()
 
     @property
     def chain(self):
