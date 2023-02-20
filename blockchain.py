@@ -134,18 +134,13 @@ class Blockchain:
             self.save_data()
             if not is_receiving:
                 for node in self.__peer_nodes:
-                    url = "http://{}/broadcast-transaction".format(node)
+                    url = 'http://{}/broadcast-transaction'.format(node)
                     try:
                         response = requests.post(url, json={
-                            'sender': sender,
-                            'recipient': recipient,
-                            'amount': amount,
-                            'signature': signature
-                        })
-                        if response.status_code == 404 or response.status_code == 500:
-                            print("Transaction declined")
+                                                 'sender': sender, 'recipient': recipient, 'amount': amount, 'signature': signature})
+                        if response.status_code == 400 or response.status_code == 500:
+                            print('Transaction declined, needs resolving')
                             return False
-
                     except requests.exceptions.ConnectionError:
                         continue
             return True
@@ -160,13 +155,13 @@ class Blockchain:
         proof = self.proof_of_work()
         reward_transaction = Transaction(
             'MINING', self.public_key, '', MINING_REWARD)
-        copied_transaction = self.__open_transactions[:]
-        for tx in copied_transaction:
+        copied_transactions = self.__open_transactions[:]
+        for tx in copied_transactions:
             if not Wallet.verify_transaction(tx):
                 return None
-        copied_transaction.append(reward_transaction)
+        copied_transactions.append(reward_transaction)
         block = Block(len(self.__chain), hashed_block,
-                      copied_transaction, proof)
+                      copied_transactions, proof)
         self.__chain.append(block)
         self.__open_transactions = []
         self.save_data()
@@ -176,28 +171,35 @@ class Blockchain:
             converted_block['transactions'] = [
                 tx.__dict__ for tx in converted_block['transactions']]
             try:
-                response = requests.post(url, json={
-                    'block': converted_block
-                })
-                if response.status_code == 404 or response.status_code == 500:
-                    print("Block declined, needs resolving")
-                    return False
+                response = requests.post(url,
+                                         json={
+                                             'block': converted_block
+                                         })
+                if response.status_code == 400 or response.status_code == 500:
+                    print('Block declined, needs resolving')
             except requests.exceptions.ConnectionError:
                 continue
         return block
 
     def add_block(self, block):
-        transactions = [Transaction(tx['sender'], tx['recipient'], tx['signature'], tx['amount'])
-                        for tx in block['transactions']]
+        transactions = [Transaction(
+            tx['sender'], tx['recipient'], tx['signature'], tx['amount']) for tx in block['transactions']]
         proof_is_valid = Verification.valid_proof(
-            transactions[:-1], block['previous_block'], block['proof'])
+            transactions[:-1], block['previous_hash'], block['proof'])
         hashes_match = hash_block(self.chain[-1]) == block['previous_hash']
         if not proof_is_valid or not hashes_match:
             return False
         converted_block = Block(
             block['index'], block['previous_hash'], transactions, block['proof'], block['timestamp'])
         self.__chain.append(converted_block)
-        self.__open_transactions = []
+        stored_transactions = self.__open_transactions[:]
+        for itx in block['transactions']:
+            for opentx in stored_transactions:
+                if opentx.sender == itx['sender'] and opentx.recipient == itx['recipient'] and opentx.amount == itx['amount'] and opentx.signature == itx['signature']:
+                    try:
+                        self.__open_transactions.remove(opentx)
+                    except ValueError:
+                        print('Item was already removed')
         self.save_data()
         return True
 

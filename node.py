@@ -64,7 +64,7 @@ def get_balance():
 
     if balance != None:
         response = {
-            'message': 'Fetched balance sucessfully',
+            'message': 'Fetched balance successfully',
             'funds': balance
         }
         return jsonify(response), 201
@@ -115,7 +115,7 @@ def broadcast_block():
     values = request.get_json()
     if not values:
         response = {
-            'message': "No data found"
+            'message': 'No data found.'
         }
         return jsonify(response), 400
     if 'block' not in values:
@@ -123,24 +123,23 @@ def broadcast_block():
             'message': "Data is missing"
         }
         return jsonify(response), 400
-    block = values["block"]
+    block = values['block']
     if block['index'] == blockchain.chain[-1].index + 1:
         if blockchain.add_block(block):
             response = {
-                'meesage': 'Block added'
+                'message': 'Block added'
             }
             return jsonify(response), 201
         response = {
-            'message': 'Block seems invalid'
+            'message': 'Block seems invalid.'
         }
-        return jsonify(response), 400
+        return jsonify(response), 500
     elif block['index'] > blockchain.chain[-1].index:
         pass
     else:
         response = {
-            'message': 'Blockchain seems to be shorter, block not added'
-        }
-        return jsonify(response), 400
+            'message': 'Blockchain seems to be shorter, block not added'}
+        return jsonify(response), 409
 
 
 @app.route("/transaction", methods=["POST"])
