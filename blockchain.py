@@ -8,21 +8,20 @@ from block import Block
 from transaction import Transaction
 from wallet import Wallet
 
-
-# Initializing blockchain list
 MINING_REWARD = 10
 
 
 class Blockchain:
 
     def __init__(self, public_key, node_id):
-        self.genesis_block = Block(previous_hash="", index=0,
-                                   transactions=[], proof=100)
-        self.chain = [self.genesis_block]
+        genesis_block = Block(previous_hash="", index=0,
+                              transactions=[], proof=100)
+        self.chain = [genesis_block]
         self.__open_transactions = []
         self.public_key = public_key
         self.__peer_nodes = set()
         self.node_id = node_id
+        self.resolve_conflicts = False
         self.load_load()
 
     @property
@@ -43,10 +42,10 @@ class Blockchain:
                 blockchain = json.loads(file_content[0][:-1])
                 updated_blockchain = []
                 for block in blockchain:
-                    tx_transactions = [Transaction(
+                    converted_tx = [Transaction(
                         tx['sender'], tx['recipient'], tx['signature'], tx['amount']) for tx in block['transactions']]
                     updated_block = Block(
-                        block['index'], block['previous_hash'], tx_transactions, block['proof'], block['timestamp'])
+                        block['index'], block['previous_hash'], converted_tx, block['proof'], block['timestamp'])
                     updated_blockchain.append(updated_block)
                 self.chain = updated_blockchain
                 open_transactions = json.loads(file_content[1][:-1])
@@ -69,18 +68,22 @@ class Blockchain:
 
     def save_data(self):
         try:
-            with open('data-{}.txt'.format(self.node_id), mode="w") as f:
+            with open('data-{}.txt'.format(self.node_id), mode='w') as f:
                 saveable_chain = [block.__dict__ for block in [Block(el.index, el.previous_hash, [
-                    t_el.__dict__ for t_el in el.transactions], el.proof, el.timestamp) for el in self.__chain]]
+                    tx.__dict__ for tx in el.transactions], el.proof, el.timestamp) for el in self.__chain]]
                 f.write(json.dumps(saveable_chain))
-                f.write("\n")
-                saveable_transaction = [
-                    tx.__dict__ for tx in self.__open_transactions]
-                f.write(json.dumps(saveable_transaction))
-                f.write("\n")
+                f.write('\n')
+                saveable_tx = [tx.__dict__ for tx in self.__open_transactions]
+                f.write(json.dumps(saveable_tx))
+                f.write('\n')
                 f.write(json.dumps(list(self.__peer_nodes)))
-        except IOError as e:
-            print(e)
+                # save_data = {
+                #     'chain': blockchain,
+                #     'ot': open_transactions
+                # }
+                # f.write(pickle.dumps(save_data))
+        except IOError:
+            print('Saving failed!')
 
     def proof_of_work(self):
         last_block = self.__chain[-1]
@@ -106,28 +109,17 @@ class Blockchain:
         amount_sent = reduce(
             lambda tx_sum, tx_amount: tx_sum + sum(tx_amount) if len(tx_amount) > 0 else tx_sum + 0, tx_sender, 0)
         tx_recipient = [[tx.amount for tx in block.transactions
-                        if tx.recipient == participant] for block in self.__chain]
+                         if tx.recipient == participant] for block in self.__chain]
         amount_received = reduce(
             lambda tx_sum, tx_amount: tx_sum + sum(tx_amount) if len(tx_amount) > 0 else tx_sum + 0, tx_recipient, 0)
         return amount_received - amount_sent
 
     def get_last_blockchain_value(self):
-        """ Return last value """
         if len(self.__chain) < 1:
             return None
         return self.__chain[-1]
 
     def add_transaction(self, recipient, sender, signature, amount=1.0, is_receiving=False):
-        """Append a new value as well as the last blockchain to the blockchain 
-
-        Args:
-            sender (_type_): The sender of the coin
-            recipient (_type_): The recipient of the coins
-            amount (float, optional): The amount of coins sent with the transaction. Defaults to 1.0.
-        """
-
-        # if self.public_key == None:
-        #     return False
         transaction = Transaction(sender, recipient, signature, amount)
         if Verification.verify_transaction(transaction, self.get_balance):
             self.__open_transactions.append(transaction)
@@ -138,6 +130,8 @@ class Blockchain:
                     try:
                         response = requests.post(url, json={
                                                  'sender': sender, 'recipient': recipient, 'amount': amount, 'signature': signature})
+                        print("response sender")
+                        print(response)
                         if response.status_code == 400 or response.status_code == 500:
                             print('Transaction declined, needs resolving')
                             return False
@@ -177,6 +171,8 @@ class Blockchain:
                                          })
                 if response.status_code == 400 or response.status_code == 500:
                     print('Block declined, needs resolving')
+                if response.status_code == 409:
+                    self.resolve_conflicts = True
             except requests.exceptions.ConnectionError:
                 continue
         return block
