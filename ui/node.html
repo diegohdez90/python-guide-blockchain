@@ -146,6 +146,7 @@
                 <div class="col">
                     <button class="btn btn-primary" @click="onLoadData">{{ view === 'chain' ? 'Load Blockchain' : 'Load Transactions' }}</button>
                     <button v-if="view === 'chain' && wallet" class="btn btn-success" @click="onMine">Mine Coins</button>
+                    <button class="btn btn-warning" @click="onResolveConflicts">Resolve Conflicts</button>
                 </div>
             </div>
             <div class="row">
@@ -351,6 +352,19 @@
                                 vm.error = "Error in retrieve open transactions"
                             });
                     }
+                },
+                onResolveConflicts: function () {
+                    var vm = this;
+                    axios.post("/resolve-conflicts")
+                        .then(res => {
+                            const { data } = res;
+                            vm.error = null;
+                            vm.success = data.message;
+                        })
+                        .catch(err => {
+                            vm.success = null;
+                            vm.error = err.response.data.message;
+                        });
                 }
             }
         })

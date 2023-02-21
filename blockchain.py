@@ -10,19 +10,20 @@ from wallet import Wallet
 
 MINING_REWARD = 10
 
+print(__name__)
+
 
 class Blockchain:
 
     def __init__(self, public_key, node_id):
-        genesis_block = Block(previous_hash="", index=0,
-                              transactions=[], proof=100)
+        genesis_block = Block(0, '', [], 100, 0)
         self.chain = [genesis_block]
         self.__open_transactions = []
         self.public_key = public_key
         self.__peer_nodes = set()
         self.node_id = node_id
         self.resolve_conflicts = False
-        self.load_load()
+        self.load_data()
 
     @property
     def chain(self):
@@ -35,7 +36,7 @@ class Blockchain:
     def get_open_transactions(self):
         return self.__open_transactions[:]
 
-    def load_load(self):
+    def load_data(self):
         try:
             with open("data-{}.txt".format(self.node_id), mode="r") as f:
                 file_content = f.readlines()
@@ -69,8 +70,8 @@ class Blockchain:
     def save_data(self):
         try:
             with open('data-{}.txt'.format(self.node_id), mode='w') as f:
-                saveable_chain = [block.__dict__ for block in [Block(el.index, el.previous_hash, [
-                    tx.__dict__ for tx in el.transactions], el.proof, el.timestamp) for el in self.__chain]]
+                saveable_chain = [block.__dict__ for block in [Block(block_el.index, block_el.previous_hash, [
+                    tx.__dict__ for tx in block_el.transactions], block_el.proof, block_el.timestamp) for block_el in self.__chain]]
                 f.write(json.dumps(saveable_chain))
                 f.write('\n')
                 saveable_tx = [tx.__dict__ for tx in self.__open_transactions]
@@ -106,12 +107,12 @@ class Blockchain:
                           for tx in self.__open_transactions if tx.sender == participant]
         tx_sender.append(open_tx_sender)
         print(tx_sender)
-        amount_sent = reduce(
-            lambda tx_sum, tx_amount: tx_sum + sum(tx_amount) if len(tx_amount) > 0 else tx_sum + 0, tx_sender, 0)
+        amount_sent = reduce(lambda tx_sum, tx_amt: tx_sum + sum(tx_amt)
+                             if len(tx_amt) > 0 else tx_sum + 0, tx_sender, 0)
         tx_recipient = [[tx.amount for tx in block.transactions
                          if tx.recipient == participant] for block in self.__chain]
-        amount_received = reduce(
-            lambda tx_sum, tx_amount: tx_sum + sum(tx_amount) if len(tx_amount) > 0 else tx_sum + 0, tx_recipient, 0)
+        amount_received = reduce(lambda tx_sum, tx_amt: tx_sum + sum(tx_amt)
+                                 if len(tx_amt) > 0 else tx_sum + 0, tx_recipient, 0)
         return amount_received - amount_sent
 
     def get_last_blockchain_value(self):
@@ -130,8 +131,6 @@ class Blockchain:
                     try:
                         response = requests.post(url, json={
                                                  'sender': sender, 'recipient': recipient, 'amount': amount, 'signature': signature})
-                        print("response sender")
-                        print(response)
                         if response.status_code == 400 or response.status_code == 500:
                             print('Transaction declined, needs resolving')
                             return False
@@ -143,12 +142,15 @@ class Blockchain:
     def mine_block(self):
         if self.public_key == None:
             return None
-
         last_block = self.__chain[-1]
         hashed_block = hash_block(last_block)
         proof = self.proof_of_work()
         reward_transaction = Transaction(
             'MINING', self.public_key, '', MINING_REWARD)
+        copied_transactions = self.__open_transactions[:]
+        for tx in copied_transactions:
+            if not Wallet.verify_transaction(tx):
+                return None
         copied_transactions = self.__open_transactions[:]
         for tx in copied_transactions:
             if not Wallet.verify_transaction(tx):
@@ -166,9 +168,7 @@ class Blockchain:
                 tx.__dict__ for tx in converted_block['transactions']]
             try:
                 response = requests.post(url,
-                                         json={
-                                             'block': converted_block
-                                         })
+                                         json={'block': converted_block})
                 if response.status_code == 400 or response.status_code == 500:
                     print('Block declined, needs resolving')
                 if response.status_code == 409:
@@ -198,6 +198,31 @@ class Blockchain:
                         print('Item was already removed')
         self.save_data()
         return True
+
+    def resolve(self):
+        winner_chain = self.chain
+        replace = False
+        for node in self.__peer_nodes:
+            url = 'http://{}/chain'.format(node)
+            try:
+                response = requests.get(url)
+                node_chain = response.json()
+                node_chain = [Block(block['index'], block['previous_hash'], [Transaction(
+                    tx['sender'], tx['recipient'], tx['signature'], tx['amount']) for tx in block['transactions']],
+                    block['proof'], block['timestamp']) for block in node_chain]
+                node_chain_length = len(node_chain)
+                local_chain_length = len(winner_chain)
+                if node_chain_length > local_chain_length and Verification.verify_chain(node_chain):
+                    winner_chain = node_chain
+                    replace = True
+            except requests.exceptions.ConnectionError:
+                continue
+        self.resolve_conflicts = False
+        self.chain = winner_chain
+        if replace:
+            self.__open_transactions = []
+        self.save_data()
+        return replace
 
     def add_peer_node(self, node):
         self.__peer_nodes.add(node)
